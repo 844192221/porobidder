@@ -385,6 +385,145 @@ input:focus {
   margin-bottom: 0;
 }
 
+.activityTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.activityTitle h2 {
+  margin-bottom: 0;
+}
+
+.statusBadge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #e9f8f2;
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.statusBadge.joined {
+  background: #eef4ff;
+  color: var(--blue);
+}
+
+.statusBadge.live {
+  background: #fff4df;
+  color: #b77913;
+}
+
+.activityMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.activityMeta span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #fbfefa;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.auctionRoom {
+  width: min(100%, 900px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, 0.94);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+
+.roomGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.roomPanel,
+.bidPanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 18px;
+}
+
+.currentPlayerCard {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  border: 1px dashed #c9d8cf;
+  border-radius: 8px;
+  background: #f7fbf7;
+  text-align: center;
+}
+
+.currentPlayerCard.waiting {
+  background: #fbfefa;
+}
+
+.currentPlayerCard span {
+  color: var(--green);
+  font-weight: 900;
+}
+
+.currentPlayerCard strong {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.currentPlayerCard small {
+  max-width: 260px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.bidderList {
+  display: grid;
+  gap: 10px;
+}
+
+.bidderItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.bidderItem small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.smallAvatar {
+  display: grid;
+  width: 38px;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: linear-gradient(145deg, var(--blue), var(--green));
+  color: var(--white);
+  font-weight: 900;
+}
+
+.bidInputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
 @keyframes gentleFloat {
   50% {
     translate: 0 -6px;
@@ -408,13 +547,17 @@ input:focus {
 
   .dashboardHeader,
   .infoGrid,
-  .activityBox {
+  .activityBox,
+  .roomGrid,
+  .bidInputRow {
     display: grid;
+    grid-template-columns: 1fr;
   }
 
   .introPanel,
   .panel,
-  .dashboard {
+  .dashboard,
+  .auctionRoom {
     padding: 22px;
   }
 

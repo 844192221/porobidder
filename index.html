@@ -89,10 +89,58 @@
 
           <section class="activityBox">
             <div>
-              <h2>拍卖摊位</h2>
+              <div class="activityTitle">
+                <h2 id="activityNameText">拍卖摊位</h2>
+                <span id="activityStatusBadge" class="statusBadge">暂无</span>
+              </div>
               <p id="activityText">现在还没有开摊的拍卖活动。</p>
+              <div id="activityMeta" class="activityMeta"></div>
             </div>
             <button id="joinButton" type="button" disabled>加入活动</button>
+          </section>
+        </section>
+      </section>
+
+      <section id="auctionView" class="view hidden">
+        <section class="auctionRoom">
+          <header class="dashboardHeader">
+            <div>
+              <p class="eyebrow">竞拍房间</p>
+              <h1 id="auctionRoomName">-</h1>
+            </div>
+            <button id="backHomeButton" type="button" class="secondary">返回</button>
+          </header>
+
+          <div class="roomGrid">
+            <article class="roomPanel">
+              <h2>当前竞品</h2>
+              <div id="currentPlayerCard" class="currentPlayerCard">
+                <span id="roomItemStatus">等待上架</span>
+                <strong id="roomItemSymbol">?</strong>
+                <small id="roomItemHint">下一步我们会在这里显示选手 ID、位置和起拍价。</small>
+              </div>
+            </article>
+
+            <aside class="roomPanel">
+              <h2>竞拍人</h2>
+              <div class="bidderList">
+                <div class="bidderItem">
+                  <div id="roomAvatar" class="smallAvatar">?</div>
+                  <div>
+                    <strong id="roomUserId">-</strong>
+                    <small><span id="roomMoney">100</span> 金币</small>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <section class="bidPanel">
+            <label for="bidInput">出价</label>
+            <div class="bidInputRow">
+              <input id="bidInput" type="number" min="0" placeholder="竞价功能下一步开启" disabled />
+              <button type="button" disabled>提交出价</button>
+            </div>
           </section>
         </section>
       </section>
