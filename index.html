@@ -98,6 +98,11 @@
             </div>
             <button id="joinButton" type="button" disabled>加入活动</button>
           </section>
+
+          <section class="devTools">
+            <span>开发测试</span>
+            <button id="startNowButton" type="button" class="secondary">立即开摊</button>
+          </section>
         </section>
       </section>
 
@@ -118,11 +123,12 @@
                 <span id="roomItemStatus">等待上架</span>
                 <strong id="roomItemSymbol">?</strong>
                 <small id="roomItemHint">下一步我们会在这里显示选手 ID、位置和起拍价。</small>
+                <div id="roomItemDetails" class="itemDetails"></div>
               </div>
             </article>
 
             <aside class="roomPanel">
-              <h2>竞拍人</h2>
+              <h2>我的席位</h2>
               <div class="bidderList">
                 <div class="bidderItem">
                   <div id="roomAvatar" class="smallAvatar">?</div>
@@ -132,15 +138,27 @@
                   </div>
                 </div>
               </div>
+              <div class="countdownBox">
+                <span>本轮倒计时</span>
+                <strong id="roundCountdown">--:--</strong>
+              </div>
             </aside>
           </div>
 
           <section class="bidPanel">
-            <label for="bidInput">出价</label>
+            <label for="bidInput">我的暗标报价</label>
             <div class="bidInputRow">
               <input id="bidInput" type="number" min="0" placeholder="竞价功能下一步开启" disabled />
-              <button type="button" disabled>提交出价</button>
+              <button id="submitBidButton" type="button" disabled>提交出价</button>
             </div>
+            <p id="bidMessage" class="message"></p>
+          </section>
+
+          <section id="resultPanel" class="resultPanel hidden">
+            <h2>开奖结果</h2>
+            <p id="resultText"></p>
+            <div id="resultDetails" class="resultDetails"></div>
+            <button id="nextRoundButton" type="button" class="secondary hidden">进入加赛</button>
           </section>
         </section>
       </section>
