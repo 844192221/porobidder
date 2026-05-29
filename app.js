@@ -1,8 +1,10 @@
 const STARTING_MONEY = 100;
 const ROUND_DURATION_MS = 30000;
+const AUTH_TOKEN_KEY = "porobidder.authToken";
 
 const state = {
   userId: "",
+  authToken: "",
   money: STARTING_MONEY,
   hasAuction: true,
   joinedAuction: false,
@@ -66,6 +68,59 @@ const bidMessage = document.querySelector("#bidMessage");
 const resultPanel = document.querySelector("#resultPanel");
 const resultText = document.querySelector("#resultText");
 const resultDetails = document.querySelector("#resultDetails");
+
+function persistAuthToken(token) {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+}
+
+function restoreAuthToken() {
+  state.authToken = localStorage.getItem(AUTH_TOKEN_KEY) || "";
+}
+
+function applyUser(user) {
+  state.userId = user.userId;
+  state.money = user.money;
+}
+
+function clearAuthSession() {
+  state.userId = "";
+  state.authToken = "";
+  state.money = STARTING_MONEY;
+  state.joinedAuction = false;
+  persistAuthToken("");
+  resetRoundState();
+  userIdInput.value = "";
+  loginMessage.textContent = "";
+  updateAvatarPreview();
+}
+
+async function apiRequest(path, options = {}) {
+  const apiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (state.authToken) {
+    headers.Authorization = `Bearer ${state.authToken}`;
+  }
+
+  const response = await fetch(`${apiBase}${path}`, { ...options, headers });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession();
+    }
+    throw new Error(payload.message || "请求失败，请稍后重试。");
+  }
+
+  return payload;
+}
 
 function showView(viewName) {
   welcomeView.classList.toggle("hidden", viewName !== "welcome");
@@ -163,7 +218,7 @@ function formatAuctionTime(startAt) {
   return `${timeText} ${dateText} ${timezoneText || userTimeZone}`;
 }
 
-function login() {
+async function login() {
   const userId = userIdInput.value.trim();
 
   if (!userId) {
@@ -171,11 +226,26 @@ function login() {
     return;
   }
 
-  state.userId = userId;
-  state.money = STARTING_MONEY;
-  loginMessage.textContent = "";
-  renderHome();
-  showView("home");
+  loginButton.disabled = true;
+  loginMessage.textContent = "正在验证身份...";
+
+  try {
+    const payload = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+
+    state.authToken = payload.token;
+    persistAuthToken(payload.token);
+    applyUser(payload.user);
+    loginMessage.textContent = "";
+    renderHome();
+    showView("home");
+  } catch (error) {
+    loginMessage.textContent = error.message;
+  } finally {
+    loginButton.disabled = false;
+  }
 }
 
 function updateAvatarPreview() {
@@ -183,14 +253,18 @@ function updateAvatarPreview() {
   avatarPreview.textContent = userId ? userId.slice(0, 1).toUpperCase() : "?";
 }
 
-function logout() {
-  state.userId = "";
-  state.money = STARTING_MONEY;
-  state.joinedAuction = false;
-  resetRoundState();
-  userIdInput.value = "";
-  loginMessage.textContent = "";
-  updateAvatarPreview();
+async function logout() {
+  if (state.authToken) {
+    try {
+      await apiRequest("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Logout should still proceed locally even when backend is unavailable.
+    }
+  }
+
+  clearAuthSession();
   showView("welcome");
 }
 
@@ -452,4 +526,22 @@ setInterval(() => {
   }
 }, 1000);
 
-showView("welcome");
+async function bootstrap() {
+  restoreAuthToken();
+
+  if (!state.authToken) {
+    showView("welcome");
+    return;
+  }
+
+  try {
+    const user = await apiRequest("/api/auth/me");
+    applyUser(user);
+    renderHome();
+    showView("home");
+  } catch {
+    showView("welcome");
+  }
+}
+
+bootstrap();

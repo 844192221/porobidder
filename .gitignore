@@ -1,0 +1,6 @@
+backend/target/
+backend/.idea/
+
+# Optional per-machine Maven overrides (do not commit local paths)
+backend/.mvn/maven.config
+backend/.mvn/settings.xml
