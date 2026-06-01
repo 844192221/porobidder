@@ -116,19 +116,79 @@
             <button id="backHomeButton" type="button" class="secondary">返回</button>
           </header>
 
-          <div class="roomGrid">
-            <article class="roomPanel">
-              <h2>当前竞品</h2>
-              <div id="currentPlayerCard" class="currentPlayerCard">
-                <span id="roomItemStatus">等待上架</span>
-                <strong id="roomItemSymbol">?</strong>
-                <small id="roomItemHint">下一步我们会在这里显示选手 ID、位置和起拍价。</small>
-                <div id="roomItemDetails" class="itemDetails"></div>
-              </div>
+          <div class="roomStage">
+            <article class="roomPanel poolPanel leftPoolsPanel">
+              <h2>待拍队列 <small id="queuePoolCount" class="poolCount">0</small></h2>
+              <ul id="queuePoolList" class="playerPoolList queuePoolList"></ul>
+              <h2 class="poolSectionTitle">留拍区 <small id="passedPoolCount" class="poolCount">0</small></h2>
+              <ul id="passedPoolList" class="playerPoolList passedPoolList"></ul>
             </article>
 
-            <aside class="roomPanel">
-              <h2>我的席位</h2>
+            <article class="centerPanel">
+              <section class="currentItemBlock">
+                <h2>当前竞品</h2>
+                <div id="currentPlayerCard" class="currentPlayerCard waiting">
+                <p id="roomItemStatus" class="playerCardStatus">等待上架</p>
+                <div id="currentPlayerInfo" class="playerInfoLayout hidden">
+                  <article class="playerIdCard">
+                    <span>选手 ID</span>
+                    <strong id="currentPlayerName" title="">-</strong>
+                  </article>
+                  <div class="playerMetaGrid">
+                    <article class="playerInfoCard playerInfoCard--compact">
+                      <span>位置</span>
+                      <strong id="currentPlayerPosition">-</strong>
+                    </article>
+                    <article class="playerInfoCard playerInfoCard--rank">
+                      <span>分段</span>
+                      <strong id="currentPlayerRank">-</strong>
+                    </article>
+                    <article class="playerInfoCard playerInfoCard--compact">
+                      <span>起拍价</span>
+                      <strong id="currentPlayerPrice">-</strong>
+                    </article>
+                  </div>
+                </div>
+                <p id="roomItemHint" class="playerCardHint">到点后按队列自动上架下一位选手。</p>
+                <div id="playerCardFeed" class="playerCardFeed">
+                  <div id="feedResultSlot" class="feedResultSlot">
+                    <section id="feedHintPanel" class="feedHintPanel hidden">
+                      <p id="bidMessage" class="feedHintText"></p>
+                    </section>
+                    <section id="auctionEndPanel" class="inlineResultPanel auctionEndPanel hidden">
+                      <h3>活动结束</h3>
+                      <p id="auctionFinishedText"></p>
+                    </section>
+                    <section id="resultPanel" class="inlineResultPanel hidden">
+                      <h3>开奖结果</h3>
+                      <p id="resultText"></p>
+                      <div id="resultDetails" class="resultDetails"></div>
+                    </section>
+                  </div>
+                </div>
+              </div>
+              </section>
+
+              <section class="bidPanelInline">
+                <label for="bidInput" class="bidPanelLabel">我的暗标报价（返场轮可输入 0 捡漏）</label>
+                <input
+                  id="bidInput"
+                  class="bidInputField"
+                  type="number"
+                  min="0"
+                  placeholder="开摊后可以报价"
+                  disabled
+                />
+                <button id="submitBidButton" type="button" class="bidSubmitButton" disabled>出价</button>
+              </section>
+            </article>
+
+            <aside class="roomPanel rightPanel">
+              <div class="countdownBox countdownBoxTop">
+                <span>本轮倒计时</span>
+                <strong id="roundCountdown">--:--</strong>
+              </div>
+              <h2>战队详情</h2>
               <div class="bidderList">
                 <div class="bidderItem">
                   <div id="roomAvatar" class="smallAvatar">?</div>
@@ -138,28 +198,19 @@
                   </div>
                 </div>
               </div>
-              <div class="countdownBox">
-                <span>本轮倒计时</span>
-                <strong id="roundCountdown">--:--</strong>
+              <div class="teamBoard">
+                <div class="teamColumn">
+                  <span id="teamALabel">我方阵容</span>
+                  <ul id="teamAList" class="teamList"></ul>
+                </div>
+                <div class="teamColumn">
+                  <span id="teamBLabel">对手阵容</span>
+                  <ul id="teamBList" class="teamList"></ul>
+                </div>
               </div>
+              <p id="teamProgressText" class="message"></p>
             </aside>
           </div>
-
-          <section class="bidPanel">
-            <label for="bidInput">我的暗标报价</label>
-            <div class="bidInputRow">
-              <input id="bidInput" type="number" min="0" placeholder="竞价功能下一步开启" disabled />
-              <button id="submitBidButton" type="button" disabled>提交出价</button>
-            </div>
-            <p id="bidMessage" class="message"></p>
-          </section>
-
-          <section id="resultPanel" class="resultPanel hidden">
-            <h2>开奖结果</h2>
-            <p id="resultText"></p>
-            <div id="resultDetails" class="resultDetails"></div>
-            <button id="nextRoundButton" type="button" class="secondary hidden">进入加赛</button>
-          </section>
         </section>
       </section>
     </main>
