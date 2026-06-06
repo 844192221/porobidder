@@ -1,12 +1,7 @@
 const STARTING_MONEY = 100;
-const ROUND_DURATION_MS = 10000;
-const AUTO_ADVANCE_MS = 4000;
-const TICK_MS = 200;
 const HOME_REFRESH_MS = 1000;
 const TEAM_SIZE = 5;
 const AUTH_TOKEN_KEY = "porobidder.authToken";
-const OPPONENT_ID = "Alice";
-
 const state = {
   userId: "",
   authToken: "",
@@ -16,15 +11,17 @@ const state = {
   selectedActivityId: null,
   joinedAuction: false,
   auctionSession: null,
-  roundEndsAt: null,
-  sealedBid: null,
-  opponentBid: null,
+  roomView: null,
+  roomSocket: null,
+  myTeam: null,
+  managerA: null,
+  managerB: null,
+  opponentId: "",
   roundResult: null,
   lastRoundResult: null,
   roundNumber: 1,
-  advanceAt: null,
-  mockOpponentMoney: STARTING_MONEY,
-  countdownDisplay: "",
+  lastRoomPayloadRaw: "",
+  lastBidPrefillKey: "",
 };
 
 const welcomeView = document.querySelector("#welcomeView");
@@ -99,6 +96,7 @@ function applyUser(user) {
 }
 
 function clearAuthSession() {
+  closeRoomSocket();
   state.userId = "";
   state.authToken = "";
   state.money = STARTING_MONEY;
@@ -107,15 +105,137 @@ function clearAuthSession() {
   state.selectedActivityId = null;
   state.joinedAuction = false;
   state.auctionSession = null;
+  state.roomView = null;
+  state.myTeam = null;
+  state.managerA = null;
+  state.managerB = null;
+  state.opponentId = "";
+  state.roundResult = null;
+  state.lastRoundResult = null;
+  state.roundNumber = 1;
+  state.lastRoomPayloadRaw = "";
+  state.lastBidPrefillKey = "";
   persistAuthToken("");
-  resetRoundState();
   userIdInput.value = "";
   loginMessage.textContent = "";
   updateAvatarPreview();
 }
 
+function getApiBase() {
+  return window.location.protocol === "file:" ? "http://localhost:8080" : "";
+}
+
+function getWsBase() {
+  if (window.location.protocol === "file:") {
+    return "ws://localhost:8080";
+  }
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.hostname}:8080`;
+}
+
+function closeRoomSocket() {
+  if (!state.roomSocket) return;
+  state.roomSocket.onclose = null;
+  state.roomSocket.close();
+  state.roomSocket = null;
+}
+
+function mapPlayerFromSnapshot(player) {
+  return {
+    playerId: player.playerId,
+    position: player.position,
+    rankLevel: player.rankLevel,
+    basePrice: player.basePrice,
+    label: `${player.position} · ${player.playerId}`,
+  };
+}
+
+function mapRoundResultFromDto(dto) {
+  if (!dto) return null;
+  return {
+    type: dto.type,
+    text: dto.text,
+    bids: (dto.bids || []).map((bid) => ({ id: bid.managerId, amount: bid.amount })),
+    playerSnapshot: dto.playerSnapshot ? mapPlayerFromSnapshot(dto.playerSnapshot) : null,
+  };
+}
+
+function applyRoomView(view) {
+  state.roomView = view;
+  state.money = view.myMoney;
+  state.myTeam = view.myTeam;
+  state.managerA = view.managerA;
+  state.managerB = view.managerB;
+  state.opponentId = view.opponentId || "";
+  state.roundNumber = view.roundNumber;
+  state.roundResult = mapRoundResultFromDto(view.roundResult);
+  state.lastRoundResult = mapRoundResultFromDto(view.lastRoundResult);
+
+  const queue = [];
+  if (view.currentPlayer) {
+    queue.push(mapPlayerFromSnapshot(view.currentPlayer));
+  }
+  if (view.queueWaiting?.length) {
+    queue.push(...view.queueWaiting.map(mapPlayerFromSnapshot));
+  }
+
+  state.auctionSession = {
+    activityId: view.activityId,
+    name: view.title,
+    startAt: view.startAt,
+    phase: view.phase,
+    encoreQueue: (view.encoreQueue || []).map(mapPlayerFromSnapshot),
+    passedPool: (view.passedPool || []).map(mapPlayerFromSnapshot),
+    queue,
+    teamA: (view.teamA || []).map(mapPlayerFromSnapshot),
+    teamB: (view.teamB || []).map(mapPlayerFromSnapshot),
+    finished: view.finished,
+    finishReason: view.finishReason,
+  };
+
+  const currentId = view.currentPlayer?.playerId || "";
+  const prefillKey = `${view.roundNumber}:${view.phase}:${currentId}`;
+  if (view.roundOpen && !view.myBidSubmitted && view.currentPlayer) {
+    if (state.lastBidPrefillKey !== prefillKey) {
+      bidInput.value = String(view.currentPlayer.basePrice);
+      state.lastBidPrefillKey = prefillKey;
+    }
+  } else if (!view.currentPlayer || !view.roundOpen) {
+    state.lastBidPrefillKey = "";
+  }
+}
+
+function connectRoomSocket(activityId) {
+  closeRoomSocket();
+  const url = `${getWsBase()}/ws/activities/${activityId}?token=${encodeURIComponent(state.authToken)}`;
+  const socket = new WebSocket(url);
+  state.roomSocket = socket;
+
+  socket.onmessage = (event) => {
+    if (event.data === state.lastRoomPayloadRaw) {
+      return;
+    }
+    state.lastRoomPayloadRaw = event.data;
+    const message = JSON.parse(event.data);
+    if (message.type === "room" && message.payload) {
+      applyRoomView(message.payload);
+      renderAuctionRoom();
+      return;
+    }
+    if (message.type === "error" && message.message) {
+      setBidHint(message.message);
+    }
+  };
+
+  socket.onclose = () => {
+    if (state.roomSocket === socket) {
+      state.roomSocket = null;
+    }
+  };
+}
+
 async function apiRequest(path, options = {}) {
-  const apiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
+  const apiBase = getApiBase();
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -153,17 +273,6 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-function mapPlayerDto(player) {
-  return {
-    playerId: player.playerId,
-    position: player.position,
-    rankLevel: player.rankLevel,
-    originalBasePrice: player.startPrice,
-    basePrice: player.startPrice,
-    label: `${player.position} · ${player.playerId}`,
-  };
-}
-
 function isFirstAuctionPhase(session) {
   return session?.phase === "first";
 }
@@ -174,21 +283,6 @@ function canBidZero(session) {
 
 function getPhaseLabel(session) {
   return isFirstAuctionPhase(session) ? "第一轮" : "返场";
-}
-
-function beginEncorePhase(session) {
-  if (session.encoreQueue.length === 0) {
-    return false;
-  }
-  session.phase = "encore";
-  session.queue = [...session.encoreQueue];
-  session.encoreQueue = [];
-  return true;
-}
-
-function markPlayerForEncore(player) {
-  player.basePrice = 0;
-  return player;
 }
 
 function setCurrentPlayerDisplay(player) {
@@ -261,26 +355,6 @@ function setBidHint(message) {
   syncFeedSlot(false);
 }
 
-function createAuctionSession(detail, startAt) {
-  return {
-    activityId: detail.activityId,
-    name: detail.title,
-    startAt: normalizeDateTime(startAt ?? detail.activityTime),
-    phase: "first",
-    encoreQueue: [],
-    passedPool: [],
-    queue: detail.players.map(mapPlayerDto),
-    teamA: [],
-    teamB: [],
-    finished: false,
-  };
-}
-
-function normalizeDateTime(value) {
-  if (!value) return new Date().toISOString();
-  return value;
-}
-
 function getSelectedActivitySummary() {
   return state.activities.find((item) => item.activityId === state.selectedActivityId) || state.activities[0];
 }
@@ -292,68 +366,9 @@ async function loadActivities() {
   state.selectedActivityId = activities[0]?.activityId ?? null;
 }
 
-function anyTeamFull(session) {
-  return session.teamA.length >= TEAM_SIZE || session.teamB.length >= TEAM_SIZE;
-}
-
-function getWinningTeamLabel(session) {
-  if (session.teamA.length >= TEAM_SIZE) {
-    return getTeamLabel("A");
-  }
-  if (session.teamB.length >= TEAM_SIZE) {
-    return getTeamLabel("B");
-  }
-  return "";
-}
-
-function finishAuction(session, reason) {
-  if (state.roundResult) {
-    const player = getCurrentPlayer();
-    state.lastRoundResult = {
-      ...state.roundResult,
-      playerSnapshot: player
-        ? {
-            playerId: player.playerId,
-            position: player.position,
-            rankLevel: player.rankLevel,
-            basePrice: player.basePrice,
-          }
-        : state.lastRoundResult?.playerSnapshot,
-    };
-  }
-  session.finished = true;
-  session.finishReason = reason;
-  state.roundEndsAt = null;
-  state.roundResult = null;
-  state.advanceAt = null;
-  state.sealedBid = null;
-  state.opponentBid = null;
-  state.countdownDisplay = "";
-}
-
 function getPassedPoolPlayers(session) {
-  if (session.finished) {
-    return [...session.encoreQueue, ...session.passedPool];
-  }
-  if (isFirstAuctionPhase(session)) {
-    return session.encoreQueue;
-  }
+  // Backend already returns the phase-aware/finished merged passed pool view.
   return session.passedPool;
-}
-
-function getFinishMessage(session) {
-  const winner = getWinningTeamLabel(session);
-  const passedCount = getPassedPoolPlayers(session).length;
-  const waitingCount = session.finished
-    ? session.queue.length
-    : Math.max(0, session.queue.length - (getCurrentPlayer() ? 1 : 0));
-  if (session.finishReason) {
-    return session.finishReason;
-  }
-  if (winner) {
-    return `${winner} 已满 ${TEAM_SIZE} 人，拍卖结束。另一队可从留拍区自选剩余选手（待拍 ${waitingCount} · 留拍 ${passedCount}）。`;
-  }
-  return "拍卖结束。";
 }
 
 function renderAuctionEndPanel(finished) {
@@ -383,13 +398,18 @@ function renderPlayerPoolList(listElement, countElement, players, emptyText) {
 }
 
 function renderAuctionPools(session) {
-  const waiting = session.finished ? session.queue : session.queue.slice(1);
+  const auctionStarted = Boolean(state.roomView?.auctionStarted);
+  const waiting = session.finished
+    ? session.queue
+    : auctionStarted
+      ? session.queue.slice(1)
+      : session.queue;
   renderPlayerPoolList(queuePoolList, queuePoolCount, waiting, "暂无排队选手");
   renderPlayerPoolList(
     passedPoolList,
     passedPoolCount,
     getPassedPoolPlayers(session),
-    "暂无留拍选手"
+    "暂无流拍选手"
   );
 }
 
@@ -397,48 +417,9 @@ function getCurrentPlayer() {
   return state.auctionSession?.queue[0] ?? null;
 }
 
-function getTeamRoster(teamKey) {
-  return teamKey === "A" ? state.auctionSession.teamA : state.auctionSession.teamB;
-}
-
-function addPlayerToTeam(teamKey, player) {
-  const roster = getTeamRoster(teamKey);
-  if (roster.length >= TEAM_SIZE) return false;
-  roster.push(player);
-  return true;
-}
-
-function removeCurrentPlayerFromQueue() {
-  const session = state.auctionSession;
-  if (!session || session.queue.length === 0) return;
-  session.queue.shift();
-}
-
-function pickRandomTeamForAssign() {
-  const session = state.auctionSession;
-  const slots = [];
-  if (session.teamA.length < TEAM_SIZE) slots.push("A");
-  if (session.teamB.length < TEAM_SIZE) slots.push("B");
-  if (slots.length === 0) return null;
-  return slots[Math.floor(Math.random() * slots.length)];
-}
-
 function getTeamLabel(teamKey) {
-  return teamKey === "A" ? `${state.userId} 队` : `${OPPONENT_ID} 队`;
-}
-
-function getManagerTeamKey(managerId) {
-  return managerId === state.userId ? "A" : "B";
-}
-
-function deductMoney(managerId, amount) {
-  if (managerId === state.userId) {
-    state.money = Math.max(0, state.money - amount);
-    return;
-  }
-  if (managerId === OPPONENT_ID) {
-    state.mockOpponentMoney = Math.max(0, state.mockOpponentMoney - amount);
-  }
+  const manager = teamKey === "A" ? state.managerA : state.managerB;
+  return `${manager || "?"} 队`;
 }
 
 function renderHome() {
@@ -564,13 +545,19 @@ async function logout() {
 async function joinAuction() {
   if (!state.hasAuction) return;
 
-  if (state.joinedAuction) {
-    await enterAuctionRoom();
-    return;
-  }
+  const summary = getSelectedActivitySummary();
+  if (!summary) return;
 
-  state.joinedAuction = true;
-  renderHome();
+  try {
+    if (!state.joinedAuction) {
+      await apiRequest(`/api/activities/${summary.activityId}/room/join`, { method: "POST" });
+      state.joinedAuction = true;
+      renderHome();
+    }
+    await enterAuctionRoom();
+  } catch (error) {
+    activityText.textContent = error.message;
+  }
 }
 
 async function enterAuctionRoom() {
@@ -578,15 +565,15 @@ async function enterAuctionRoom() {
   if (!summary) return;
 
   try {
-    const detail = await apiRequest(`/api/activities/${summary.activityId}`);
-    // 使用首页 summary 的开摊时间（含「立即开摊」本地覆盖），避免被接口里的未来时间重置
-    state.auctionSession = createAuctionSession(detail, summary.activityTime);
-    resetRoundState();
-    renderAuctionRoom();
+    const join = await apiRequest(`/api/activities/${summary.activityId}/room/join`, { method: "POST" });
+    state.myTeam = join.myTeam;
+    state.managerA = join.managerA;
+    state.managerB = join.managerB;
+    state.opponentId = join.myTeam === "A" ? join.managerB : join.managerA;
+    connectRoomSocket(summary.activityId);
     showView("auction");
   } catch (error) {
-    bidMessage.textContent = error.message;
-    syncFeedSlot(false);
+    setBidHint(error.message);
   }
 }
 
@@ -594,9 +581,11 @@ function renderAuctionRoom() {
   const session = state.auctionSession;
   if (!session) return;
 
-  const auctionStarted = isAuctionStarted(session.startAt);
+  const auctionStarted = Boolean(state.roomView?.auctionStarted);
   const player = getCurrentPlayer();
   const finished = session.finished;
+  startNowButton.disabled = true;
+  startNowButton.classList.add("hidden");
 
   bidInput.disabled = finished;
   submitBidButton.disabled = finished;
@@ -604,8 +593,8 @@ function renderAuctionRoom() {
 
   if (finished) {
     auctionRoomName.textContent = session.name;
-    teamALabel.textContent = `${state.userId} 队 (${session.teamA.length}/${TEAM_SIZE})`;
-    teamBLabel.textContent = `${OPPONENT_ID} 队 (${session.teamB.length}/${TEAM_SIZE})`;
+    teamALabel.textContent = `${getTeamLabel("A")} (${session.teamA.length}/${TEAM_SIZE})`;
+    teamBLabel.textContent = `${getTeamLabel("B")} (${session.teamB.length}/${TEAM_SIZE})`;
     renderTeamList(teamAList, session.teamA);
     renderTeamList(teamBList, session.teamB);
     renderAuctionPools(session);
@@ -613,7 +602,7 @@ function renderAuctionRoom() {
     roomUserId.textContent = state.userId;
     roomMoney.textContent = state.money;
     roundCountdown.textContent = "--:--";
-    teamProgressText.textContent = "拍卖已结束，左侧队列与留拍区保留结束时状态。";
+    teamProgressText.textContent = "拍卖已结束，左侧队列与流拍区保留结束时状态。";
     currentPlayerCard.classList.add("auctionEnded", "activeItem");
     currentPlayerCard.classList.remove("waiting");
     roomItemStatus.textContent = "活动结束";
@@ -625,44 +614,46 @@ function renderAuctionRoom() {
     return;
   }
 
-  if (auctionStarted && player && !state.roundEndsAt && !state.roundResult) {
-    startSealedRound();
-  }
-
   auctionRoomName.textContent = session.name;
-  teamALabel.textContent = `${state.userId} 队 (${session.teamA.length}/${TEAM_SIZE})`;
-  teamBLabel.textContent = `${OPPONENT_ID} 队 (${session.teamB.length}/${TEAM_SIZE})`;
+  teamALabel.textContent = `${getTeamLabel("A")} (${session.teamA.length}/${TEAM_SIZE})`;
+  teamBLabel.textContent = `${getTeamLabel("B")} (${session.teamB.length}/${TEAM_SIZE})`;
   renderTeamList(teamAList, session.teamA);
   renderTeamList(teamBList, session.teamB);
   renderAuctionPools(session);
   const passedCount = getPassedPoolPlayers(session).length;
   const waitingCount = Math.max(0, session.queue.length - (player ? 1 : 0));
   const phaseHint = getPhaseLabel(session);
-  teamProgressText.textContent = `${phaseHint} · 待拍 ${waitingCount} · 留拍 ${passedCount}`;
+  teamProgressText.textContent = `${phaseHint} · 待拍 ${waitingCount} · 流拍 ${passedCount}`;
 
   currentPlayerCard.classList.toggle("waiting", !auctionStarted || !player);
   currentPlayerCard.classList.toggle("activeItem", auctionStarted && !!player);
   currentPlayerCard.classList.remove("auctionEnded");
 
-  if (!auctionStarted) {
+  const view = state.roomView;
+  if (view?.roomStatus) {
+    roomItemStatus.textContent = view.roomStatus;
+  } else if (!auctionStarted) {
     roomItemStatus.textContent = "等待开摊";
-    roomItemHint.textContent = "到点后按队列自动上架下一位选手。";
-    roomItemHint.classList.remove("hidden");
-    setCurrentPlayerDisplay(null);
   } else if (!player) {
     roomItemStatus.textContent = session.encoreQueue.length > 0 ? "等待返场" : "等待选手";
-    roomItemHint.textContent =
-      session.encoreQueue.length > 0
-        ? "第一轮已结束，即将开始返场竞拍。"
-        : "当前没有待拍选手。";
-    roomItemHint.classList.remove("hidden");
-    setCurrentPlayerDisplay(null);
   } else {
     const queueIndex = session.queue.findIndex((item) => item.playerId === player.playerId) + 1;
     const phaseLabel = getPhaseLabel(session);
     roomItemStatus.textContent = `${phaseLabel} · 第 ${state.roundNumber} 局 · 队列 ${queueIndex}/${session.queue.length}`;
-    roomItemHint.textContent = "";
-    roomItemHint.classList.add("hidden");
+  }
+
+  if (!player) {
+    roomItemHint.textContent =
+      auctionStarted
+        ? session.encoreQueue.length > 0
+          ? "第一轮已结束，即将开始返场竞拍。"
+          : "当前没有待拍选手。"
+        : "到点后按队列自动上架下一位选手。";
+    roomItemHint.classList.remove("hidden");
+    setCurrentPlayerDisplay(null);
+  } else {
+    roomItemHint.textContent = auctionStarted ? "" : "到点后按队列自动上架下一位选手。";
+    roomItemHint.classList.toggle("hidden", auctionStarted);
     setCurrentPlayerDisplay(player);
   }
 
@@ -676,11 +667,12 @@ function renderAuctionRoom() {
 
 function renderBidControls(auctionStarted, player) {
   const session = state.auctionSession;
-  const roundOpen = auctionStarted && player && !state.roundResult && session && !session.finished;
-  const hasActed = state.sealedBid !== null;
+  const view = state.roomView;
+  const roundOpen = view?.roundOpen ?? false;
+  const hasActed = view?.myBidSubmitted ?? false;
   const zeroAllowed = session && canBidZero(session);
 
-  updateRoundCountdown();
+  roundCountdown.textContent = view?.countdown ?? "--:--";
   if (player) {
     bidInput.min = zeroAllowed ? "0" : String(Math.max(1, player.basePrice));
     bidInput.placeholder = zeroAllowed
@@ -693,25 +685,13 @@ function renderBidControls(auctionStarted, player) {
   bidInput.disabled = !roundOpen || hasActed;
   submitBidButton.disabled = !roundOpen || hasActed;
 
-  if (!auctionStarted) {
-    bidMessage.textContent = "活动还没到开始时间，可以先在房间里等。";
-  } else if (!player) {
-    bidMessage.textContent = "当前没有待拍选手。";
-  } else if (hasActed) {
-    bidMessage.textContent = "已确认出价，等待倒计时结束。";
-  } else if (zeroAllowed) {
-    bidMessage.textContent = "返场可 0 元捡漏；不点「出价」视为本轮不拍。";
-  } else {
-    bidMessage.textContent = "第一轮不可 0 元捡漏；不点「出价」视为本轮不拍。";
-  }
+  bidMessage.textContent = view?.hint ?? "";
+  syncFeedSlot(Boolean(session?.finished));
 }
 
 function submitBid() {
-  const player = getCurrentPlayer();
-  if (!player || state.roundResult) return;
-
-  if (!isAuctionStarted(state.auctionSession.startAt)) {
-    setBidHint("拍卖还没开始。");
+  if (!state.roomSocket || state.roomSocket.readyState !== WebSocket.OPEN) {
+    setBidHint("未连接到拍卖房间。");
     return;
   }
 
@@ -726,314 +706,11 @@ function submitBid() {
     return;
   }
 
-  const session = state.auctionSession;
-  if (isFirstAuctionPhase(session) && bid === 0) {
-    setBidHint("第一轮不可 0 元捡漏，请出正价或不点出价。");
-    return;
-  }
-
-  if (bid > 0 && bid < player.basePrice) {
-    const zeroHint = canBidZero(session) ? "出 0 可以捡漏。" : "";
-    setBidHint(`正价出价不能低于起拍价 ${player.basePrice}。${zeroHint}`);
-    return;
-  }
-
-  if (bid > state.money) {
-    setBidHint("出价不能超过你的钱包余额。");
-    return;
-  }
-
-  state.sealedBid = bid;
-  renderAuctionRoom();
-}
-
-function randomizeOpponentBid(forceSkip = false) {
-  const player = getCurrentPlayer();
-  if (!player) return;
-
-  if (forceSkip || Math.random() < 0.25) {
-    state.opponentBid = null;
-    return;
-  }
-
-  const session = state.auctionSession;
-  const roll = Math.random();
-  if (roll < 0.15 && canBidZero(session)) {
-    state.opponentBid = 0;
-    return;
-  }
-
-  const minBid = canBidZero(session) ? player.basePrice : Math.max(1, player.basePrice);
-  const maxBid = Math.max(minBid, state.mockOpponentMoney);
-  if (minBid > state.mockOpponentMoney) {
-    state.opponentBid = null;
-    return;
-  }
-
-  state.opponentBid = Math.floor(Math.random() * (maxBid - minBid + 1)) + minBid;
+  state.roomSocket.send(JSON.stringify({ type: "bid", amount: bid }));
 }
 
 function startAuctionNow() {
-  const summary = getSelectedActivitySummary();
-  if (!summary) return;
-
-  summary.activityTime = new Date(Date.now() - 1000).toISOString();
-  if (state.auctionSession) {
-    state.auctionSession.startAt = summary.activityTime;
-    if (!anyTeamFull(state.auctionSession) && getCurrentPlayer()) {
-      startSealedRound();
-    }
-  }
-
-  renderHome();
-  if (!auctionView.classList.contains("hidden")) {
-    renderAuctionRoom();
-  }
-}
-
-function startSealedRound() {
-  const session = state.auctionSession;
-  if (!session || session.finished || anyTeamFull(session) || !getCurrentPlayer()) {
-    return;
-  }
-
-  state.roundEndsAt = Date.now() + ROUND_DURATION_MS;
-  state.sealedBid = null;
-  state.opponentBid = null;
-  state.roundResult = null;
-  state.advanceAt = null;
-  state.countdownDisplay = "";
-  bidInput.value = "";
-  bidMessage.textContent = "";
-  randomizeOpponentBid();
-  updateRoundCountdown();
-}
-
-function resetRoundState() {
-  state.roundEndsAt = null;
-  state.sealedBid = null;
-  state.opponentBid = null;
-  state.roundResult = null;
-  state.lastRoundResult = null;
-  state.advanceAt = null;
-  state.roundNumber = 1;
-  state.mockOpponentMoney = STARTING_MONEY;
-  state.countdownDisplay = "";
-}
-
-function getRemainingMs() {
-  if (!state.roundEndsAt) return 0;
-  return Math.max(0, state.roundEndsAt - Date.now());
-}
-
-function formatRemainingTime(ms) {
-  if (ms <= 0) {
-    return "00:00";
-  }
-  const seconds = Math.min(Math.ceil(ms / 1000), Math.ceil(ROUND_DURATION_MS / 1000));
-  return `00:${String(seconds).padStart(2, "0")}`;
-}
-
-function isRoundCountdownActive() {
-  const session = state.auctionSession;
-  if (!session || session.finished || state.roundResult || !state.roundEndsAt) {
-    return false;
-  }
-  if (!isAuctionStarted(session.startAt) || !getCurrentPlayer()) {
-    return false;
-  }
-  return getRemainingMs() > 0;
-}
-
-function updateRoundCountdown() {
-  let nextDisplay = "--:--";
-  if (isRoundCountdownActive()) {
-    nextDisplay = formatRemainingTime(getRemainingMs());
-  }
-
-  if (nextDisplay === state.countdownDisplay) {
-    return;
-  }
-
-  state.countdownDisplay = nextDisplay;
-  roundCountdown.textContent = nextDisplay;
-}
-
-function runAuctionTick() {
-  updateRoundCountdown();
-  if (state.auctionSession?.finished) {
-    return;
-  }
-  maybeRevealRound();
-  maybeAdvanceRound();
-}
-
-function maybeRevealRound() {
-  if (state.auctionSession?.finished) return;
-  if (!state.roundEndsAt || state.roundResult || getRemainingMs() > 0) return;
-  if (state.opponentBid === null) {
-    randomizeOpponentBid(false);
-  }
-  revealRound();
-  renderAuctionRoom();
-}
-
-function getSubmittedBids() {
-  const bids = [];
-  if (state.sealedBid !== null) {
-    bids.push({ id: state.userId, amount: state.sealedBid });
-  }
-  if (state.opponentBid !== null) {
-    bids.push({ id: OPPONENT_ID, amount: state.opponentBid });
-  }
-  return bids;
-}
-
-function revealRound() {
-  const player = getCurrentPlayer();
-  const session = state.auctionSession;
-  if (!player || !session) return;
-
-  const bids = getSubmittedBids();
-
-  if (bids.length === 0) {
-    const passText = isFirstAuctionPhase(session)
-      ? `${player.playerId} 留拍，第一轮结束后返场（起拍 0 金币）。`
-      : `${player.playerId} 流拍，回到队尾。`;
-    state.roundResult = {
-      type: "pass",
-      text: passText,
-      bids,
-    };
-    scheduleRoundAdvance();
-    return;
-  }
-
-  const highestAmount = Math.max(...bids.map((bid) => bid.amount));
-  const winners = bids.filter((bid) => bid.amount === highestAmount);
-
-  if (winners.length > 1) {
-    const teamKey = pickRandomTeamForAssign();
-    if (!teamKey) {
-      state.roundResult = {
-        type: "finished",
-        text: "双方阵容已满，活动结束。",
-        bids,
-      };
-      finishAuction(session, "双方阵容已满，活动结束。");
-      scheduleRoundAdvance();
-      return;
-    }
-
-    const payer = winners[Math.floor(Math.random() * winners.length)];
-    state.roundResult = {
-      type: "tie",
-      text: `${player.label} 同价 ${highestAmount}，随机加入 ${getTeamLabel(teamKey)}（由 ${payer.id} 支付）。`,
-      bids,
-      teamKey,
-      amount: highestAmount,
-      payerId: payer.id,
-    };
-    scheduleRoundAdvance();
-    return;
-  }
-
-  const winner = winners[0];
-  const teamKey = getManagerTeamKey(winner.id);
-  state.roundResult = {
-    type: "sold",
-    text: `${winner.id} 以 ${highestAmount} 金币签下 ${player.label}。`,
-    bids,
-    winnerId: winner.id,
-    teamKey,
-    amount: highestAmount,
-  };
-  scheduleRoundAdvance();
-}
-
-function scheduleRoundAdvance() {
-  if (!state.advanceAt) {
-    state.advanceAt = Date.now() + AUTO_ADVANCE_MS;
-  }
-}
-
-function maybeAdvanceRound() {
-  if (state.auctionSession?.finished) return;
-  if (!state.roundResult || !state.advanceAt || Date.now() < state.advanceAt) return;
-  processRoundEnd();
-}
-
-function processRoundEnd() {
-  const session = state.auctionSession;
-  if (!session || session.finished) return;
-
-  const result = state.roundResult;
-  const player = getCurrentPlayer();
-  if (!result || !player) return;
-
-  state.lastRoundResult = {
-    ...result,
-    playerSnapshot: {
-      playerId: player.playerId,
-      position: player.position,
-      rankLevel: player.rankLevel,
-      basePrice: player.basePrice,
-    },
-  };
-
-  if (result.type === "pass") {
-    if (isFirstAuctionPhase(session)) {
-      removeCurrentPlayerFromQueue();
-      session.encoreQueue.push(markPlayerForEncore(player));
-    } else {
-      removeCurrentPlayerFromQueue();
-      session.passedPool.push(player);
-    }
-  } else if (result.type === "sold") {
-    addPlayerToTeam(result.teamKey, player);
-    deductMoney(result.winnerId, result.amount);
-    removeCurrentPlayerFromQueue();
-  } else if (result.type === "tie") {
-    addPlayerToTeam(result.teamKey, player);
-    deductMoney(result.payerId, result.amount);
-    removeCurrentPlayerFromQueue();
-  } else if (result.type === "finished") {
-    finishAuction(session);
-  }
-
-  state.roundResult = null;
-  state.advanceAt = null;
-  state.roundNumber += 1;
-
-  if (anyTeamFull(session)) {
-    const winner = getWinningTeamLabel(session);
-    finishAuction(session, `${winner} 已满 ${TEAM_SIZE} 人，拍卖结束。`);
-    renderAuctionRoom();
-    return;
-  }
-
-  if (session.finished) {
-    renderAuctionRoom();
-    return;
-  }
-
-  if (isFirstAuctionPhase(session) && session.queue.length === 0) {
-    if (beginEncorePhase(session)) {
-      bidMessage.textContent = "第一轮结束，返场竞拍开始（留拍选手起拍 0 金币）。";
-    }
-  }
-
-  if (session.queue.length === 0) {
-    bidMessage.textContent =
-      session.encoreQueue.length > 0
-        ? "第一轮收尾中，即将开始返场。"
-        : "待拍队列已空。";
-    renderAuctionRoom();
-    return;
-  }
-
-  startSealedRound();
-  renderAuctionRoom();
+  // Room now auto-starts when both managers join.
 }
 
 function renderRoundResult() {
@@ -1071,18 +748,9 @@ backHomeButton.addEventListener("click", () => {
   showView("home");
 });
 
-setInterval(runAuctionTick, TICK_MS);
-
 setInterval(() => {
   if (!homeView.classList.contains("hidden")) {
     renderHome();
-  }
-  if (!auctionView.classList.contains("hidden")) {
-    if (state.auctionSession?.finished) {
-      renderAuctionRoom();
-    } else if (!isRoundCountdownActive()) {
-      renderAuctionRoom();
-    }
   }
 }, HOME_REFRESH_MS);
 

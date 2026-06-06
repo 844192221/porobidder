@@ -54,7 +54,23 @@ cd backend
 
 - `POST /api/auth/login` — 登录
 - `GET /api/auth/me` — 当前用户（需 `Authorization: Bearer <token>`）
+- `GET /api/activities`、`GET /api/activities/{id}` — 活动与选手
+- `POST /api/activities/{id}/room/join` — 加入拍卖房间（每活动最多 2 位经理）
+- `WS /ws/activities/{id}?token=...` — 房间状态推送与出价（消息见下）
 - `/api/**` 除登录外需携带有效 token（鉴权拦截器）
+
+**WebSocket 消息（JSON）**
+
+客户端 → 服务端：
+
+- `{ "type": "bid", "amount": 50 }` — 本轮出价
+
+服务端 → 客户端：
+
+- `{ "type": "room", "payload": { ... } }` — 房间快照（倒计时、队列、两队、开奖结果等）
+- `{ "type": "error", "message": "..." }` — 错误提示
+
+竞拍规则在服务端执行；两人需各自登录并 `join` 后进入房间联机。第二位经理加入后房间会自动开拍。
 
 ## 扩展
 
