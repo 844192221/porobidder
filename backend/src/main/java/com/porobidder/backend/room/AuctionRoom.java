@@ -2,14 +2,14 @@ package com.porobidder.backend.room;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class AuctionRoom {
 
-    public static final int TEAM_SIZE = 5;
-    public static final int STARTING_MONEY = 100;
+    public static final int TEAM_SIZE = 4;
+    public static final int STARTING_MONEY = 80;
 
     private final int activityId;
     private final String title;
@@ -25,11 +25,12 @@ public class AuctionRoom {
     private int moneyA = STARTING_MONEY;
     private int moneyB = STARTING_MONEY;
     private boolean finished;
+    private Instant finishedAt;
     private String finishReason;
     private int roundNumber = 1;
     private Instant roundEndsAt;
     private Instant advanceAt;
-    private final Map<String, Integer> sealedBids = new HashMap<>();
+    private final Map<String, Integer> sealedBids = new LinkedHashMap<>();
     private RoundResult roundResult;
     private RoundResult lastRoundResult;
 
@@ -122,6 +123,14 @@ public class AuctionRoom {
 
     public void setFinished(boolean finished) {
         this.finished = finished;
+    }
+
+    public Instant getFinishedAt() {
+        return finishedAt;
+    }
+
+    public void setFinishedAt(Instant finishedAt) {
+        this.finishedAt = finishedAt;
     }
 
     public String getFinishReason() {

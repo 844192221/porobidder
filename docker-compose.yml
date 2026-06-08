@@ -3,14 +3,20 @@ services:
     image: mysql:8
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_HOST: "%"
       MYSQL_DATABASE: porofessorplayers
+    command: >
+      --innodb-buffer-pool-size=32M
+      --performance-schema=OFF
+      --key-buffer-size=8M
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 12
+      retries: 30
+      start_period: 90s
     restart: unless-stopped
 
   api:

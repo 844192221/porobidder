@@ -10,7 +10,7 @@ import com.porobidder.backend.auth.dto.UserDto;
 
 @Service
 public class AuthService {
-    private static final int STARTING_MONEY = 100;
+    private static final int STARTING_MONEY = 80;
 
     private final SessionStore sessionStore;
     private final Map<String, Integer> usersMoney = new ConcurrentHashMap<>();

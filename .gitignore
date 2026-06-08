@@ -10,3 +10,9 @@ backend/src/main/resources/application-local.properties
 
 # Droplet deploy secrets
 .env
+
+# Editor / local tooling
+.vscode/
+
+# Database dumps (import manually on VPS)
+*.sql

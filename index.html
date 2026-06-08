@@ -13,7 +13,7 @@
           <section class="introPanel">
             <p class="eyebrow">PoroBidder</p>
             <h1>峡谷人才市场</h1>
-            <p class="description">带上 100 金币预算，来市场里看看今天有哪些选手挂牌。</p>
+            <p class="description">带上 80 金币预算，来市场里看看今天有哪些选手挂牌。</p>
             <button id="startButton" type="button">我要进市场</button>
           </section>
 
@@ -77,7 +77,7 @@
           <div class="infoGrid">
             <article class="infoCard moneyCard">
               <span>钱包</span>
-              <strong id="moneyText">100</strong>
+              <strong id="moneyText">80</strong>
               <small>可用金币</small>
             </article>
             <article class="infoCard">
@@ -99,10 +99,6 @@
             <button id="joinButton" type="button" disabled>加入活动</button>
           </section>
 
-          <section class="devTools">
-            <span>开发测试</span>
-            <button id="startNowButton" type="button" class="secondary">立即开摊</button>
-          </section>
         </section>
       </section>
 
@@ -120,7 +116,7 @@
             <article class="roomPanel poolPanel leftPoolsPanel">
               <h2>待拍队列 <small id="queuePoolCount" class="poolCount">0</small></h2>
               <ul id="queuePoolList" class="playerPoolList queuePoolList"></ul>
-              <h2 class="poolSectionTitle">留拍区 <small id="passedPoolCount" class="poolCount">0</small></h2>
+              <h2 class="poolSectionTitle">流拍区 <small id="passedPoolCount" class="poolCount">0</small></h2>
               <ul id="passedPoolList" class="playerPoolList passedPoolList"></ul>
             </article>
 
@@ -176,7 +172,7 @@
                   class="bidInputField"
                   type="number"
                   min="0"
-                  placeholder="开摊后可以报价"
+                  placeholder="开拍后可以报价"
                   disabled
                 />
                 <button id="submitBidButton" type="button" class="bidSubmitButton" disabled>出价</button>
@@ -184,17 +180,13 @@
             </article>
 
             <aside class="roomPanel rightPanel">
-              <div class="countdownBox countdownBoxTop">
-                <span>本轮倒计时</span>
-                <strong id="roundCountdown">--:--</strong>
-              </div>
               <h2>战队详情</h2>
               <div class="bidderList">
                 <div class="bidderItem">
                   <div id="roomAvatar" class="smallAvatar">?</div>
                   <div>
                     <strong id="roomUserId">-</strong>
-                    <small><span id="roomMoney">100</span> 金币</small>
+                    <small><span id="roomMoney">80</span> 金币</small>
                   </div>
                 </div>
               </div>

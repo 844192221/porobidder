@@ -2,10 +2,10 @@ package com.porobidder.backend.room;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -132,36 +132,22 @@ public class AuctionEngine {
             .filter(bid -> bid.amount() == highestAmount)
             .toList();
 
-        if (winners.size() > 1) {
-            String teamKey = pickRandomTeamForAssign(room);
-            if (teamKey == null) {
-                RoundResult result = new RoundResult("finished", "双方阵容已满，活动结束。");
-                result.getBids().addAll(bids);
-                room.setRoundResult(result);
-                finishAuction(room, "双方阵容已满，活动结束。");
-                scheduleRoundAdvance(room);
-                return;
-            }
-            RoundResult.BidEntry payer = winners.get(ThreadLocalRandom.current().nextInt(winners.size()));
-            RoundResult result = new RoundResult(
-                "tie",
-                player.getLabel() + " 同价 " + highestAmount + "，随机加入 "
-                    + teamLabel(room, teamKey) + "（由 " + payer.managerId() + " 支付）。"
-            );
+        RoundResult.BidEntry winner = winners.size() > 1
+            ? firstBidderAmong(room, winners)
+            : winners.get(0);
+        String teamKey = teamForManager(room, winner.managerId());
+        if (teamKey == null || room.rosterFor(teamKey).size() >= AuctionRoom.TEAM_SIZE) {
+            RoundResult result = new RoundResult("finished", "双方阵容已满，活动结束。");
             result.getBids().addAll(bids);
-            result.setTeamKey(teamKey);
-            result.setAmount(highestAmount);
-            result.setPayerId(payer.managerId());
             room.setRoundResult(result);
+            finishAuction(room, "双方阵容已满，活动结束。");
             scheduleRoundAdvance(room);
             return;
         }
-
-        RoundResult.BidEntry winner = winners.get(0);
-        String teamKey = teamForManager(room, winner.managerId());
+        String tieNote = winners.size() > 1 ? "（同价，先出价者得）" : "";
         RoundResult result = new RoundResult(
             "sold",
-            winner.managerId() + " 以 " + highestAmount + " 金币签下 " + player.getLabel() + "。"
+            winner.managerId() + " 以 " + highestAmount + " 金币签下 " + player.getLabel() + tieNote + "。"
         );
         result.getBids().addAll(bids);
         result.setWinnerId(winner.managerId());
@@ -253,6 +239,7 @@ public class AuctionEngine {
 
     private void finishAuction(AuctionRoom room, String reason) {
         room.setFinished(true);
+        room.setFinishedAt(Instant.now());
         room.setFinishReason(reason);
         room.setRoundEndsAt(null);
         room.setAdvanceAt(null);
@@ -260,18 +247,16 @@ public class AuctionEngine {
         room.setRoundResult(null);
     }
 
-    private String pickRandomTeamForAssign(AuctionRoom room) {
-        List<String> slots = new ArrayList<>();
-        if (room.getTeamA().size() < AuctionRoom.TEAM_SIZE) {
-            slots.add("A");
+    private RoundResult.BidEntry firstBidderAmong(AuctionRoom room, List<RoundResult.BidEntry> winners) {
+        Set<String> winnerIds = winners.stream()
+            .map(RoundResult.BidEntry::managerId)
+            .collect(Collectors.toSet());
+        for (Map.Entry<String, Integer> entry : room.getSealedBids().entrySet()) {
+            if (winnerIds.contains(entry.getKey())) {
+                return new RoundResult.BidEntry(entry.getKey(), entry.getValue());
+            }
         }
-        if (room.getTeamB().size() < AuctionRoom.TEAM_SIZE) {
-            slots.add("B");
-        }
-        if (slots.isEmpty()) {
-            return null;
-        }
-        return slots.get(ThreadLocalRandom.current().nextInt(slots.size()));
+        return winners.get(0);
     }
 
     private void addPlayerToTeam(AuctionRoom room, String teamKey, AuctionPlayer player) {
@@ -290,13 +275,6 @@ public class AuctionEngine {
             return "A";
         }
         return "B";
-    }
-
-    private String teamLabel(AuctionRoom room, String teamKey) {
-        if ("A".equals(teamKey)) {
-            return labelForManager(room.getManagerA()) + " 队";
-        }
-        return labelForManager(room.getManagerB()) + " 队";
     }
 
     private String labelForManager(String managerId) {

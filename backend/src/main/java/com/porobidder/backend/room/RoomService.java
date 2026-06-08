@@ -20,6 +20,7 @@ import com.porobidder.backend.room.dto.RoomViewDto;
 @Service
 public class RoomService {
 
+    private static final long ROOM_RESET_DELAY_MS = 6_000;
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter ISO_FORMAT =
         DateTimeFormatter.ISO_OFFSET_DATE_TIME;
@@ -94,26 +95,34 @@ public class RoomService {
         }
     }
 
-    public void startNow(int activityId, String userId) {
-        AuctionRoom room = roomStore.require(activityId);
-        synchronized (room) {
-            if (room.teamForManager(userId) == null) {
-                throw new IllegalArgumentException("仅经理可以开摊。");
-            }
-            auctionEngine.startNow(room);
-            broadcast(room);
-        }
-    }
-
     public void tickAll() {
-        for (AuctionRoom room : roomStore.findAll()) {
+        List<Integer> activityIds = roomStore.findAll().stream()
+            .map(AuctionRoom::getActivityId)
+            .toList();
+
+        for (int activityId : activityIds) {
+            AuctionRoom room = roomStore.require(activityId);
             synchronized (room) {
                 auctionEngine.tick(room);
+                if (room.isFinished()
+                    && room.getFinishedAt() != null
+                    && Instant.now().isAfter(room.getFinishedAt().plusMillis(ROOM_RESET_DELAY_MS))) {
+                    resetRoom(activityId);
+                }
+            }
+        }
+
+        for (AuctionRoom room : roomStore.findAll()) {
+            synchronized (room) {
                 if (!connectionRegistry.connectedManagers(room.getActivityId()).isEmpty()) {
                     broadcast(room);
                 }
             }
         }
+    }
+
+    private void resetRoom(int activityId) {
+        roomStore.replace(activityId, createRoom(activityId));
     }
 
     private void broadcast(AuctionRoom room) {
@@ -204,7 +213,7 @@ public class RoomService {
             return "活动结束";
         }
         if (!auctionStarted) {
-            return "等待开摊";
+            return room.managerCount() == 1 ? "等待对手" : "等待经理";
         }
         if (current == null) {
             return room.getEncoreQueue().isEmpty() ? "等待选手" : "等待返场";
@@ -226,7 +235,9 @@ public class RoomService {
             return "";
         }
         if (!auctionStarted) {
-            return "活动还没到开始时间，可以先在房间里等。";
+            return room.managerCount() == 1
+                ? "已就位，等待另一位经理加入后自动开拍。"
+                : "等待经理加入。";
         }
         if (current == null) {
             return "当前没有待拍选手。";

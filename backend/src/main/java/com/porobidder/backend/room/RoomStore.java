@@ -30,4 +30,8 @@ public class RoomStore {
     public Collection<AuctionRoom> findAll() {
         return rooms.values();
     }
+
+    public void replace(int activityId, AuctionRoom room) {
+        rooms.put(activityId, room);
+    }
 }

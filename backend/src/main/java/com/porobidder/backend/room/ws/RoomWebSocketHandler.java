@@ -55,7 +55,6 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
                     }
                     roomService.submitBid(activityId, userId, root.get("amount").asInt());
                 }
-                case "start_now" -> roomService.startNow(activityId, userId);
                 default -> throw new IllegalArgumentException("未知指令：" + type);
             }
         } catch (IllegalArgumentException ex) {
