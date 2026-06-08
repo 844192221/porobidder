@@ -130,7 +130,11 @@ function getWsBase() {
     return "ws://localhost:8080";
   }
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.hostname}:8080`;
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") {
+    return `${proto}//${host}:8080`;
+  }
+  return `${proto}//${window.location.host}`;
 }
 
 function closeRoomSocket() {

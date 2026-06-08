@@ -7,3 +7,6 @@ backend/.mvn/settings.xml
 
 # Local DB secrets
 backend/src/main/resources/application-local.properties
+
+# Droplet deploy secrets
+.env
