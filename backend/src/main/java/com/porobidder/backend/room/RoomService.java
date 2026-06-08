@@ -20,7 +20,6 @@ import com.porobidder.backend.room.dto.RoomViewDto;
 @Service
 public class RoomService {
 
-    private static final long ROOM_RESET_DELAY_MS = 6_000;
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter ISO_FORMAT =
         DateTimeFormatter.ISO_OFFSET_DATE_TIME;
@@ -49,7 +48,8 @@ public class RoomService {
         AuctionRoom room = roomStore.getOrCreate(activityId, () -> createRoom(activityId));
         synchronized (room) {
             if (room.isFinished()) {
-                throw new IllegalArgumentException("该活动拍卖已结束。");
+                resetRoom(activityId);
+                room = roomStore.require(activityId);
             }
             String team = room.teamForManager(userId);
             if (team == null) {
@@ -104,11 +104,6 @@ public class RoomService {
             AuctionRoom room = roomStore.require(activityId);
             synchronized (room) {
                 auctionEngine.tick(room);
-                if (room.isFinished()
-                    && room.getFinishedAt() != null
-                    && Instant.now().isAfter(room.getFinishedAt().plusMillis(ROOM_RESET_DELAY_MS))) {
-                    resetRoom(activityId);
-                }
             }
         }
 
@@ -246,7 +241,12 @@ public class RoomService {
             return "";
         }
         if (room.getSealedBids().containsKey(userId)) {
-            return "已确认出价，等待倒计时结束。";
+            if (room.getSealedBids().containsKey(room.getManagerA())
+                && room.getManagerB() != null
+                && room.getSealedBids().containsKey(room.getManagerB())) {
+                return "双方已出价，正在公开结果。";
+            }
+            return "已确认出价，等待对手出价或倒计时结束。";
         }
         if (!roundOpen) {
             return "";

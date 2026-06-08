@@ -57,6 +57,7 @@ const currentPlayerPrice = document.querySelector("#currentPlayerPrice");
 const roomAvatar = document.querySelector("#roomAvatar");
 const roomUserId = document.querySelector("#roomUserId");
 const roomMoney = document.querySelector("#roomMoney");
+const roundCountdown = document.querySelector("#roundCountdown");
 const bidInput = document.querySelector("#bidInput");
 const bidMessage = document.querySelector("#bidMessage");
 const feedHintPanel = document.querySelector("#feedHintPanel");
@@ -120,6 +121,32 @@ function clearAuthSession() {
 
 function getApiBase() {
   return window.location.protocol === "file:" ? "http://localhost:8080" : "";
+}
+
+const AUCTION_TICK_MS = 200;
+
+function formatRoundCountdown(epochMs) {
+  if (!epochMs) {
+    return "--:--";
+  }
+  const remainingMs = Math.max(0, epochMs - Date.now());
+  if (remainingMs <= 0) {
+    return "00:00";
+  }
+  const seconds = Math.min(
+    Math.ceil(remainingMs / 1000),
+    Math.ceil(20000 / 1000)
+  );
+  return `00:${String(seconds).padStart(2, "0")}`;
+}
+
+function updateRoundCountdown() {
+  const view = state.roomView;
+  if (!view || view.roundResult || !view.roundOpen) {
+    roundCountdown.textContent = "--:--";
+    return;
+  }
+  roundCountdown.textContent = formatRoundCountdown(view.roundEndsAtEpochMs);
 }
 
 function getWsBase() {
@@ -205,9 +232,6 @@ function applyRoomView(view) {
     state.lastBidPrefillKey = "";
   }
 
-  if (!view.finished && !view.myTeam) {
-    state.joinedAuction = false;
-  }
 }
 
 function connectRoomSocket(activityId) {
@@ -584,7 +608,8 @@ function renderAuctionRoom() {
     roomAvatar.textContent = state.userId ? state.userId.slice(0, 1).toUpperCase() : "?";
     roomUserId.textContent = state.userId;
     roomMoney.textContent = state.money;
-    teamProgressText.textContent = "拍卖已结束，房间稍后会自动重置，可返回首页再次加入。";
+    roundCountdown.textContent = "--:--";
+    teamProgressText.textContent = "拍卖已结束，可返回首页；下一轮需两位经理重新加入。";
     currentPlayerCard.classList.add("auctionEnded", "activeItem");
     currentPlayerCard.classList.remove("waiting");
     roomItemStatus.textContent = "活动结束";
@@ -665,6 +690,7 @@ function renderBidControls(auctionStarted, player) {
   }
   bidInput.disabled = !roundOpen || hasActed;
   submitBidButton.disabled = !roundOpen || hasActed;
+  updateRoundCountdown();
 
   bidMessage.textContent = view?.hint ?? "";
   syncFeedSlot(Boolean(session?.finished));
@@ -720,9 +746,19 @@ joinButton.addEventListener("click", () => {
 });
 submitBidButton.addEventListener("click", submitBid);
 backHomeButton.addEventListener("click", () => {
+  closeRoomSocket();
+  state.joinedAuction = false;
+  state.auctionSession = null;
+  state.roomView = null;
   renderHome();
   showView("home");
 });
+
+setInterval(() => {
+  if (!auctionView.classList.contains("hidden")) {
+    updateRoundCountdown();
+  }
+}, AUCTION_TICK_MS);
 
 async function bootstrap() {
   restoreAuthToken();

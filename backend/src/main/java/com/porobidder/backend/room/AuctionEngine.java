@@ -63,6 +63,9 @@ public class AuctionEngine {
             throw new IllegalArgumentException("出价不能超过你的钱包余额。");
         }
         room.getSealedBids().put(userId, amount);
+        if (bothManagersHaveBid(room)) {
+            revealRound(room);
+        }
     }
 
     public void startNow(AuctionRoom room) {
@@ -245,6 +248,14 @@ public class AuctionEngine {
         room.setAdvanceAt(null);
         room.getSealedBids().clear();
         room.setRoundResult(null);
+    }
+
+    private boolean bothManagersHaveBid(AuctionRoom room) {
+        if (room.getManagerA() == null || room.getManagerB() == null) {
+            return false;
+        }
+        return room.getSealedBids().containsKey(room.getManagerA())
+            && room.getSealedBids().containsKey(room.getManagerB());
     }
 
     private RoundResult.BidEntry firstBidderAmong(AuctionRoom room, List<RoundResult.BidEntry> winners) {

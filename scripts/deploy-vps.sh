@@ -14,6 +14,7 @@ chmod +x mvnw
 cd ..
 
 echo "==> Restart containers"
+docker-compose down --remove-orphans
 docker-compose up -d --build
 
 echo "==> Done"
