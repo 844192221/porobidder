@@ -11,6 +11,10 @@ backend/src/main/resources/application-local.properties
 # Droplet deploy secrets
 .env
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
 # Editor / local tooling
 .vscode/
 

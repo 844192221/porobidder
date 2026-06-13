@@ -15,9 +15,23 @@
 
 ## 运行
 
-### 仅前端模式
+### 新前端（React + Ant Design，开发中）
 
-直接用浏览器打开 `index.html` 即可。
+在 `frontend-ui` 分支的 `frontend/` 目录。**不要**再打开根目录的 `index.html` 看新界面。
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+浏览器访问 **http://localhost:5173**（不是 `index.html` 文件路径）。
+
+需要登录、拍卖等功能时，另开终端启动后端（见下），Vite 会把 `/api`、`/ws` 代理到 `8080`。
+
+### 旧版静态前端（根目录）
+
+根目录的 `index.html` + `app.js` 仍是上一版，线上 VPS 目前也还在用它。迁移完成前本地联调请用上面的 `frontend/`。
 
 ### 前后端联调（登录）
 
@@ -49,7 +63,11 @@ cd backend
 
 安装扩展 **Extension Pack for Java**，打开 `PoroBidderApplication.java` 使用 Run/Debug（需 JDK 17）。
 
-后端启动后，再打开根目录的 `index.html`。  
+后端启动后：
+
+- **新前端**：保持 `npm run dev`，打开 http://localhost:5173  
+- **旧前端**：打开根目录 `index.html`  
+
 当前已接入：
 
 - `POST /api/auth/login` — 登录

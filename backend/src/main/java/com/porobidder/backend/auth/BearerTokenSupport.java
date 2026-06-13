@@ -1,11 +1,11 @@
 package com.porobidder.backend.auth;
 
-final class BearerTokenSupport {
+public final class BearerTokenSupport {
 
     private BearerTokenSupport() {
     }
 
-    static String extractToken(String authorizationHeader) {
+    public static String extractToken(String authorizationHeader) {
         if (authorizationHeader == null || authorizationHeader.isBlank()) {
             throw new UnauthorizedException("未登录或登录已失效。");
         }

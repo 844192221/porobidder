@@ -6,20 +6,27 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.porobidder.backend.auth.AuthInterceptor;
+import com.porobidder.backend.vendor.VendorAuthInterceptor;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
+    private final VendorAuthInterceptor vendorAuthInterceptor;
 
-    public WebConfig(AuthInterceptor authInterceptor) {
+    public WebConfig(AuthInterceptor authInterceptor, VendorAuthInterceptor vendorAuthInterceptor) {
         this.authInterceptor = authInterceptor;
+        this.vendorAuthInterceptor = vendorAuthInterceptor;
     }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(vendorAuthInterceptor)
+            .addPathPatterns("/api/vendor/**");
+
         registry.addInterceptor(authInterceptor)
-            .addPathPatterns("/api/**");
+            .addPathPatterns("/api/**")
+            .excludePathPatterns("/api/vendor/**");
     }
 
     @Override

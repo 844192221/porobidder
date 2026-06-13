@@ -1,0 +1,367 @@
+@import url('antd/dist/reset.css');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Workshop floor — subtle grid, not decorative noise */
+.app-canvas {
+  background-color: var(--pb-page, #e8ecf2);
+  background-image:
+    linear-gradient(rgba(26, 79, 175, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 79, 175, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.page-enter {
+  animation: page-enter 320ms ease-out both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
+/* Auction room — v3 layout: seats | center | pools */
+.auction-stage {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: start;
+}
+
+.auction-center-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  max-width: 560px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.auction-pool-column {
+  min-width: 0;
+}
+
+.auction-player-stage-body {
+  box-sizing: border-box;
+}
+
+.auction-pool-queue-list {
+  scrollbar-gutter: stable;
+  align-content: start;
+}
+
+.auction-player-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .auction-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Game lane tabs — tournament bracket lane metaphor */
+.game-lane-tab {
+  flex: 1 1 120px;
+  min-width: 100px;
+  padding: 10px 16px;
+  border: 1px solid var(--pb-border, #d4dbe6);
+  border-radius: 8px;
+  background: var(--pb-card, #ffffff);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pb-text-secondary, #5a6b82);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.game-lane-tab:hover {
+  border-color: var(--pb-brand, #1a4faf);
+  color: var(--pb-text-primary, #1c2b42);
+}
+
+.game-lane-tab--active {
+  border-color: var(--pb-brand, #1a4faf);
+  background: linear-gradient(180deg, #f0f5fc 0%, #ffffff 100%);
+  color: var(--pb-brand, #1a4faf);
+  box-shadow: inset 0 -2px 0 var(--pb-brand, #1a4faf);
+}
+
+.game-lane-tab:focus-visible {
+  outline: 2px solid var(--pb-brand, #1a4faf);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-lane-tab {
+    transition: none;
+  }
+}
+
+/* Role select — hover lifts one card, dims the other */
+.role-select-grid {
+  display: grid;
+}
+
+.role-option-card {
+  position: relative;
+  transition:
+    transform 240ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 200ms ease,
+    filter 200ms ease;
+}
+
+.role-option-card__panel {
+  height: 100%;
+  transition:
+    box-shadow 240ms ease,
+    border-color 240ms ease;
+}
+
+.role-option-card__panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background 240ms ease;
+  border-radius: 10px 0 0 10px;
+  pointer-events: none;
+}
+
+.role-option-card__btn {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.role-select-grid:hover .role-option-card {
+  opacity: 0.62;
+  transform: scale(0.97);
+  filter: saturate(0.8);
+}
+
+.role-select-grid:hover .role-option-card:hover {
+  opacity: 1;
+  transform: scale(1.045) translateY(-10px);
+  filter: saturate(1);
+  z-index: 2;
+}
+
+.role-option-card:hover .role-option-card__panel {
+  box-shadow: 0 14px 36px rgba(15, 26, 46, 0.14);
+}
+
+.role-option-card--manager:hover .role-option-card__panel::before {
+  background: var(--pb-brand, #1a4faf);
+}
+
+.role-option-card--manager:hover .role-option-card__btn {
+  background: var(--pb-brand, #1a4faf) !important;
+  border-color: var(--pb-brand, #1a4faf) !important;
+  color: #ffffff !important;
+}
+
+.role-option-card--vendor:hover .role-option-card__panel::before {
+  background: var(--pb-gold, #d4a012);
+}
+
+.role-option-card--vendor:hover .role-option-card__panel {
+  box-shadow:
+    0 14px 36px rgba(15, 26, 46, 0.12),
+    0 0 0 1px rgba(212, 160, 18, 0.16);
+}
+
+.role-option-card--vendor:hover .role-option-card__btn {
+  background: var(--pb-gold, #d4a012) !important;
+  border-color: var(--pb-gold, #d4a012) !important;
+  color: #ffffff !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-option-card,
+  .role-option-card__panel {
+    transition: none;
+  }
+
+  .role-select-grid:hover .role-option-card {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .role-select-grid:hover .role-option-card:hover {
+    transform: none;
+  }
+
+  .role-option-card:hover .role-option-card__panel {
+    border-color: var(--pb-border, #d4dbe6);
+    box-shadow: 0 1px 2px rgba(15, 26, 46, 0.05), 0 2px 8px rgba(15, 26, 46, 0.04);
+  }
+
+  .role-option-card:hover .role-option-card__panel::before {
+    background: transparent;
+  }
+
+  .role-option-card:hover .role-option-card__btn {
+    background: inherit !important;
+    border-color: inherit !important;
+    color: inherit !important;
+  }
+}
+
+/* Invite code — shared across settings and stall cards */
+.invite-code {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--pb-inset, #f4f6fa);
+  border: 1px solid var(--pb-border, #d4dbe6);
+}
+
+.invite-code__heading {
+  margin: 0 0 4px !important;
+  color: var(--pb-text-secondary, #5a6b82);
+}
+
+.invite-code__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.invite-code__hint {
+  margin: 8px 0 0 !important;
+  font-size: 13px;
+  color: var(--pb-text-tertiary, #8b97a8);
+}
+
+.invite-code__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pb-text-secondary, #5a6b82);
+  white-space: nowrap;
+}
+
+.invite-code__value {
+  font-family: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--pb-brand, #1a4faf);
+  line-height: 1.2;
+}
+
+.invite-code--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.invite-code--compact .invite-code__value {
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+
+.invite-code__copy {
+  color: var(--pb-brand, #1a4faf) !important;
+  padding-inline: 4px !important;
+}
+
+/* Vendor player lots — compact table entry */
+.player-lots-table-wrap {
+  overflow-x: auto;
+}
+
+.player-lots-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.player-lots-table th {
+  padding: 0 4px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--pb-text-secondary, #5a6b82);
+  white-space: nowrap;
+}
+
+.player-lots-table td {
+  padding: 0 4px 6px;
+  vertical-align: middle;
+}
+
+.player-lots-table__col-check {
+  width: 40px;
+  text-align: center;
+}
+
+.player-lots-table__row--off td {
+  opacity: 0.45;
+}
+
+.player-lots-table__col-index {
+  width: 28px;
+  text-align: center;
+  color: var(--pb-text-tertiary, #8b97a8);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-lots-table__col-action {
+  width: 32px;
+  padding-left: 0;
+}
+
+.player-lots-table .ant-input-sm,
+.player-lots-table .ant-input-number-sm {
+  font-size: 13px;
+}
+
+:focus-visible {
+  outline: 2px solid #1a4faf;
+  outline-offset: 2px;
+}
