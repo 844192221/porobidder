@@ -20,3 +20,4 @@ frontend/dist/
 
 # Database dumps (import manually on VPS)
 *.sql
+!backend/src/main/resources/db/migration/*.sql

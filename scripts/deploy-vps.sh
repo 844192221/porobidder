@@ -4,8 +4,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "==> Pull latest code"
-git pull
+BRANCH="${DEPLOY_BRANCH:-frontend-ui}"
+
+echo "==> Pull latest code (${BRANCH})"
+git fetch origin
+git checkout "${BRANCH}"
+git pull origin "${BRANCH}"
+
+if [ ! -f frontend/dist/index.html ]; then
+  echo "==> Build frontend (npm)"
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "frontend/dist missing and npm is not installed on this host." >&2
+    exit 1
+  fi
+  cd frontend
+  npm ci
+  npm run build
+  cd ..
+fi
 
 echo "==> Build backend jar"
 cd backend
