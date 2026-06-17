@@ -14,7 +14,7 @@ type Mode = 'login' | 'register';
 function mapVendorError(message: string, t: (key: string) => string): string {
   switch (message) {
     case 'VENDOR_ID_REQUIRED':
-    case '摊主 ID 不能为空。':
+    case '主办 ID 不能为空。':
       return t('vendor.vendorIdRequired');
     case 'PASSWORD_REQUIRED':
     case '密码不能为空。':
@@ -23,13 +23,13 @@ function mapVendorError(message: string, t: (key: string) => string): string {
     case '邮箱不能为空。':
       return t('vendor.emailRequired');
     case 'VENDOR_EXISTS':
-    case '该摊主 ID 已注册。':
+    case '该主办 ID 已注册。':
       return t('vendor.vendorExists');
     case 'EMAIL_EXISTS':
     case '该邮箱已被注册。':
       return t('vendor.emailExists');
     case 'VENDOR_AUTH_FAILED':
-    case '摊主 ID 或密码不正确。':
+    case '主办 ID 或密码不正确。':
       return t('vendor.authFailed');
     case '邮箱格式不正确。':
       return t('vendor.emailInvalid');
@@ -37,10 +37,10 @@ function mapVendorError(message: string, t: (key: string) => string): string {
       if (message.startsWith('密码长度至少为')) {
         return t('vendor.passwordTooShort');
       }
-      if (message.startsWith('摊主 ID 长度需要在')) {
+      if (message.startsWith('主办 ID 长度需要在')) {
         return t('vendor.vendorIdInvalid');
       }
-      if (message === '摊主 ID 仅支持字母、数字和下划线。') {
+      if (message === '主办 ID 仅支持字母、数字和下划线。') {
         return t('vendor.vendorIdInvalid');
       }
       return message || t('vendor.authFailed');

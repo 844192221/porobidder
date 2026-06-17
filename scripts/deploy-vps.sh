@@ -23,6 +23,8 @@ if [ ! -f frontend/dist/index.html ]; then
   cd ..
 fi
 
+chmod -R a+rX frontend/dist
+
 echo "==> Build backend jar"
 cd backend
 chmod +x mvnw

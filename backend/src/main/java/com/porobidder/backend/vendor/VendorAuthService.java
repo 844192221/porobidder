@@ -36,7 +36,7 @@ public class VendorAuthService {
         String email = normalizeEmail(rawEmail);
 
         if (vendorRepository.existsByVendorId(vendorId)) {
-            throw new IllegalArgumentException("该摊主 ID 已注册。");
+            throw new IllegalArgumentException("该主办 ID 已注册。");
         }
         if (vendorRepository.existsByEmailIgnoreCase(email)) {
             throw new IllegalArgumentException("该邮箱已被注册。");
@@ -59,10 +59,10 @@ public class VendorAuthService {
         String password = normalizePassword(rawPassword);
 
         Vendor vendor = vendorRepository.findByVendorId(vendorId)
-            .orElseThrow(() -> new IllegalArgumentException("摊主 ID 或密码不正确。"));
+            .orElseThrow(() -> new IllegalArgumentException("主办 ID 或密码不正确。"));
 
         if (!passwordEncoder.matches(password, vendor.getPasswordHash())) {
-            throw new IllegalArgumentException("摊主 ID 或密码不正确。");
+            throw new IllegalArgumentException("主办 ID 或密码不正确。");
         }
 
         String token = vendorSessionStore.createToken(vendorId);
@@ -71,7 +71,7 @@ public class VendorAuthService {
 
     public VendorProfileDto getProfile(String vendorId) {
         Vendor vendor = vendorRepository.findByVendorId(vendorId)
-            .orElseThrow(() -> new IllegalArgumentException("摊主账号不存在。"));
+            .orElseThrow(() -> new IllegalArgumentException("赛事主办账号不存在。"));
         return toProfile(vendor);
     }
 
@@ -85,20 +85,20 @@ public class VendorAuthService {
 
     private String normalizeVendorId(String rawVendorId) {
         if (rawVendorId == null) {
-            throw new IllegalArgumentException("摊主 ID 不能为空。");
+            throw new IllegalArgumentException("主办 ID 不能为空。");
         }
 
         String vendorId = rawVendorId.trim();
         if (vendorId.isEmpty()) {
-            throw new IllegalArgumentException("摊主 ID 不能为空。");
+            throw new IllegalArgumentException("主办 ID 不能为空。");
         }
 
         if (vendorId.length() < 2 || vendorId.length() > 20) {
-            throw new IllegalArgumentException("摊主 ID 长度需要在 2 到 20 之间。");
+            throw new IllegalArgumentException("主办 ID 长度需要在 2 到 20 之间。");
         }
 
         if (!vendorId.matches("^[a-zA-Z0-9_]+$")) {
-            throw new IllegalArgumentException("摊主 ID 仅支持字母、数字和下划线。");
+            throw new IllegalArgumentException("主办 ID 仅支持字母、数字和下划线。");
         }
 
         return vendorId;

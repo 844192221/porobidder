@@ -16,10 +16,13 @@ if (-not $SkipPush) {
     git push PoroBidder $Branch
 }
 
+$remote = "${SshUser}@${SshHost}"
+Write-Host "==> Checkout ${Branch} on VPS"
+ssh $remote "cd ${RemoteDir} && git fetch origin && git checkout ${Branch} && git pull origin ${Branch}"
+
 if (-not $SkipFrontendBuild) {
     Write-Host "==> Build frontend locally"
     Push-Location frontend
-    npm ci
     npm run build
     Pop-Location
 }
@@ -32,6 +35,7 @@ $remote = "${SshUser}@${SshHost}"
 Write-Host "==> Sync frontend dist to VPS"
 ssh $remote "mkdir -p ${RemoteDir}/frontend/dist"
 scp -r frontend/dist/* "${remote}:${RemoteDir}/frontend/dist/"
+ssh $remote "chmod -R a+rX ${RemoteDir}/frontend/dist"
 
 Write-Host "==> Deploy on VPS ($remote)"
 ssh $remote "cd ${RemoteDir} && DEPLOY_BRANCH=${Branch} bash scripts/deploy-vps.sh"
