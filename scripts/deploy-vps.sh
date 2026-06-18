@@ -11,27 +11,13 @@ git fetch origin
 git checkout "${BRANCH}"
 git pull origin "${BRANCH}"
 
-if [ ! -f frontend/dist/index.html ]; then
-  echo "==> Build frontend (npm)"
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "frontend/dist missing and npm is not installed on this host." >&2
-    exit 1
-  fi
-  cd frontend
-  npm ci
-  npm run build
-  cd ..
-fi
-
-chmod -R a+rX frontend/dist
-
 echo "==> Build backend jar"
 cd backend
 chmod +x mvnw
 ./mvnw -DskipTests package
 cd ..
 
-echo "==> Restart containers"
+echo "==> Build images and restart containers"
 docker-compose down --remove-orphans
 docker-compose up -d --build
 
