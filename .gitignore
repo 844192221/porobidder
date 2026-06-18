@@ -15,8 +15,9 @@ backend/src/main/resources/application-local.properties
 frontend/node_modules/
 frontend/dist/
 
-# Editor / local tooling
+# Editor / local tooling (keep repo free of IDE & agent plugin config)
 .vscode/
+.cursor/
 
 # Database dumps (import manually on VPS)
 *.sql
